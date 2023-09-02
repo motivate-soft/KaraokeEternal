@@ -1,150 +1,160 @@
 import PropTypes from 'prop-types'
-import React, { useCallback, useEffect } from 'react'
-import { useDispatch, useSelector } from 'react-redux'
-
+import React from 'react'
 import Player from '../Player'
 import PlayerTextOverlay from '../PlayerTextOverlay'
-import getRoundRobinQueue from 'routes/Queue/selectors/getRoundRobinQueue'
-import { playerLeave, playerError, playerLoad, playerPlay, playerStatus } from '../../modules/player'
 
-const PlayerController = props => {
-  const queue = useSelector(getRoundRobinQueue)
-  const player = useSelector(state => state.player)
-  const playerVisualizer = useSelector(state => state.playerVisualizer)
-  const prefs = useSelector(state => state.prefs)
-  const queueItem = queue.entities[player.queueId]
-  const nextQueueItem = queue.entities[queue.result[queue.result.indexOf(player.queueId) + 1]]
+class PlayerController extends React.Component {
+  static propTypes = {
+    cdgAlpha: PropTypes.number.isRequired,
+    cdgSize: PropTypes.number.isRequired,
+    historyJSON: PropTypes.string.isRequired,
+    isAtQueueEnd: PropTypes.bool.isRequired,
+    isErrored: PropTypes.bool.isRequired,
+    isPlaying: PropTypes.bool.isRequired,
+    isPlayingNext: PropTypes.bool.isRequired,
+    isQueueEmpty: PropTypes.bool.isRequired,
+    isReplayGainEnabled: PropTypes.bool.isRequired,
+    isWebGLSupported: PropTypes.bool.isRequired,
+    mp4Alpha: PropTypes.number.isRequired,
+    queue: PropTypes.object.isRequired,
+    queueId: PropTypes.number.isRequired,
+    rgTrackGain: PropTypes.number,
+    rgTrackPeak: PropTypes.number,
+    visualizer: PropTypes.object.isRequired,
+    volume: PropTypes.number.isRequired,
+    width: PropTypes.number.isRequired,
+    height: PropTypes.number.isRequired,
+    // actions
+    playerLeave: PropTypes.func.isRequired,
+    playerError: PropTypes.func.isRequired,
+    playerLoad: PropTypes.func.isRequired,
+    playerPlay: PropTypes.func.isRequired,
+    playerStatus: PropTypes.func.isRequired,
+  }
 
-  const dispatch = useDispatch()
-  const handleStatus = useCallback(status => dispatch(playerStatus(status)), [dispatch])
-  const handleLoad = useCallback(() => dispatch(playerLoad()), [dispatch])
-  const handlePlay = useCallback(() => dispatch(playerPlay()), [dispatch])
-  const handleError = useCallback((msg) => {
-    dispatch(playerError(msg))
-    handleStatus()
-  }, [dispatch, handleStatus])
+  state = {
+    queueItem: null,
+  }
 
-  const handleLoadNext = useCallback(() => {
-    const history = JSON.parse(player.historyJSON)
+  componentDidMount () {
+    this.handleStatus()
+    this.setState({ queueItem: this.props.queue.entities[this.props.queueId] }) // @todo: use getDerivedStateFromProps?
+  }
 
-    // add current item to history (once)
-    if (queueItem && history.lastIndexOf(queueItem.queueId) === -1) {
-      history.push(queueItem.queueId)
+  componentWillUnmount () {
+    this.props.playerLeave()
+  }
+
+  componentDidUpdate (prevProps) {
+    const { props } = this
+
+    if (props.queueId !== prevProps.queueId) {
+      this.setState({ queueItem: props.queue.entities[props.queueId] })
     }
 
+    // playing for first time or playing next?
+    if ((props.isPlaying && props.queueId === -1) || props.isPlayingNext) {
+      this.handleLoadNext()
+      return
+    }
+
+    // queue was exhausted, but is no longer?
+    if (props.isAtQueueEnd && prevProps.queue.result !== props.queue.result) {
+      this.handleLoadNext()
+      return
+    }
+
+    // re-trying after error?
+    if (props.isErrored && props.isPlaying && !prevProps.isPlaying) {
+      this.handleStatus({ isErrored: false })
+      return
+    }
+
+    this.handleStatus()
+  }
+
+  handleError = (msg) => {
+    this.props.playerError(msg)
+    this.handleStatus()
+  }
+
+  handleLoadNext = () => {
+    const curIdx = this.props.queue.result.indexOf(this.props.queueId)
+
     // queue exhausted?
-    if (!nextQueueItem) {
-      handleStatus({
-        historyJSON: JSON.stringify(history),
+    if (curIdx === this.props.queue.result.length - 1) {
+      this.handleStatus({
         isAtQueueEnd: true,
         isPlayingNext: false,
-        mediaType: null,
       })
 
       return
     }
 
-    // play next
-    handleStatus({
+    // update history of played items
+    const history = JSON.parse(this.props.historyJSON)
+
+    if (this.props.queueId !== -1) {
+      history.push(this.props.queueId)
+    }
+
+    this.handleStatus({
       historyJSON: JSON.stringify(history),
       isAtQueueEnd: false,
       isPlaying: true,
       isPlayingNext: false,
-      mediaType: nextQueueItem.mediaType,
       position: 0,
-      queueId: nextQueueItem.queueId,
-      nextUserId: null,
+      queueId: this.props.queue.result[curIdx + 1],
     })
-  }, [handleStatus, nextQueueItem, player.historyJSON, queueItem])
+  }
 
-  // "lock in" the next user that isn't the currently up user, if possible
-  useEffect(() => {
-    if (!player.nextUserId || queueItem?.userId === nextQueueItem?.userId) {
-      for (let i = queue.result.indexOf(queueItem?.queueId) + 1; i < queue.result.length; i++) {
-        if (queueItem?.userId !== queue.entities[queue.result[i]].userId) {
-          handleStatus({ nextUserId: queue.entities[queue.result[i]].userId })
-          return
-        }
-      }
-    }
-  }, [handleStatus, nextQueueItem, player.nextUserId, queue, queueItem])
+  handleStatus = (status) => this.props.playerStatus({
+    ...status,
+    mediaType: this.state.queueItem ? this.state.queueItem.mediaType : null,
+  })
 
-  // always emit status when any of these change
-  useEffect(() => handleStatus(), [
-    handleStatus,
-    player.cdgAlpha,
-    player.cdgSize,
-    player.isPlaying,
-    player.mp4Alpha,
-    player.volume,
-    playerVisualizer,
-  ])
+  render () {
+    const { props, state } = this
 
-  // on unmount
-  useEffect(() => () => dispatch(playerLeave()), [dispatch])
-
-  // playing for first time or playing next?
-  useEffect(() => {
-    if ((player.isPlaying && player.queueId === -1) || player.isPlayingNext) {
-      handleLoadNext()
-    }
-  }, [handleLoadNext, player.isPlaying, player.queueId, player.isPlayingNext])
-
-  // queue was exhausted, but is no longer?
-  useEffect(() => {
-    if (player.isAtQueueEnd && nextQueueItem && player.isPlaying) {
-      handleLoadNext()
-    }
-  }, [handleLoadNext, player.isAtQueueEnd, player.isPlaying, nextQueueItem])
-
-  // retrying after error?
-  useEffect(() => {
-    if (player.isErrored && player.isPlaying) {
-      handleStatus({ isErrored: false })
-    }
-  }, [handleStatus, player.isErrored, player.isPlaying])
-
-  return (
-    <>
-      <Player
-        cdgAlpha={player.cdgAlpha}
-        cdgSize={player.cdgSize}
-        isPlaying={player.isPlaying}
-        isVisible={!!queueItem && !player.isErrored && !player.isAtQueueEnd}
-        isReplayGainEnabled={prefs.isReplayGainEnabled}
-        isWebGLSupported={player.isWebGLSupported}
-        mediaId={queueItem ? queueItem.mediaId : null}
-        mediaKey={queueItem ? queueItem.queueId : null}
-        mediaType={queueItem ? queueItem.mediaType : null}
-        mp4Alpha={player.mp4Alpha}
-        onEnd={handleLoadNext}
-        onError={handleError}
-        onLoad={handleLoad}
-        onPlay={handlePlay}
-        onStatus={handleStatus}
-        rgTrackGain={queueItem ? queueItem.rgTrackGain : null}
-        rgTrackPeak={queueItem ? queueItem.rgTrackPeak : null}
-        visualizer={playerVisualizer}
-        volume={player.volume}
-        width={props.width}
-        height={props.height}
-      />
-      <PlayerTextOverlay
-        queueItem={queueItem}
-        nextQueueItem={nextQueueItem}
-        isAtQueueEnd={player.isAtQueueEnd}
-        isQueueEmpty={!queue.result.length}
-        isErrored={player.isErrored}
-        width={props.width}
-        height={props.height}
-      />
-    </>
-  )
-}
-
-PlayerController.propTypes = {
-  width: PropTypes.number.isRequired,
-  height: PropTypes.number.isRequired,
+    return (
+      <>
+        <Player
+          cdgAlpha={props.cdgAlpha}
+          cdgSize={props.cdgSize}
+          isPlaying={props.isPlaying}
+          isVisible={!!state.queueItem && !props.isErrored && !props.isAtQueueEnd}
+          isReplayGainEnabled={props.isReplayGainEnabled}
+          isWebGLSupported={props.isWebGLSupported}
+          mediaId={state.queueItem ? state.queueItem.mediaId : null}
+          mediaKey={state.queueItem ? state.queueItem.queueId : null}
+          mediaType={state.queueItem ? state.queueItem.mediaType : null}
+          youtubeVideoId={state.queueItem ? state.queueItem.youtubeVideoId : null}
+          youtubeAlignedLyrics={state.queueItem ? state.queueItem.youtubeAlignedLyrics : null}
+          youtubeVideoDuration={state.queueItem ? state.queueItem.youtubeVideoDuration : null}
+          mp4Alpha={props.mp4Alpha}
+          onEnd={this.handleLoadNext}
+          onError={this.handleError}
+          onLoad={props.playerLoad}
+          onPlay={props.playerPlay}
+          onStatus={this.handleStatus}
+          rgTrackGain={state.queueItem ? state.queueItem.rgTrackGain : null}
+          rgTrackPeak={state.queueItem ? state.queueItem.rgTrackPeak : null}
+          visualizer={props.visualizer}
+          volume={props.volume}
+          width={props.width}
+          height={props.height}
+        />
+        <PlayerTextOverlay
+          queueItem={state.queueItem}
+          isAtQueueEnd={props.isAtQueueEnd}
+          isQueueEmpty={props.isQueueEmpty}
+          isErrored={props.isErrored}
+          width={props.width}
+          height={props.height}
+        />
+      </>
+    )
+  }
 }
 
 export default PlayerController

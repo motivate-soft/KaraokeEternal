@@ -1,4 +1,4 @@
-const log = require('./lib/Log')('server')
+const log = require('./lib/Log').getLogger(`server[${process.pid}]`)
 const path = require('path')
 const getIPAddress = require('./lib/getIPAddress')
 const http = require('http')
@@ -7,8 +7,8 @@ const { promisify } = require('util')
 const parseCookie = require('./lib/parseCookie')
 const jwtVerify = require('jsonwebtoken').verify
 const Koa = require('koa')
-const koaRouter = require('@koa/router')
-const { koaBody } = require('koa-body')
+const koaRouter = require('koa-router')
+const koaBody = require('koa-body')
 const koaFavicon = require('koa-favicon')
 const koaLogger = require('koa-logger')
 const koaMount = require('koa-mount')
@@ -16,12 +16,14 @@ const koaRange = require('koa-range')
 const koaStatic = require('koa-static')
 
 const Prefs = require('./Prefs')
+const User = require('./User')
+const YoutubeProcessManager = require('./Youtube/YoutubeProcessManager')
 const libraryRouter = require('./Library/router')
 const mediaRouter = require('./Media/router')
 const prefsRouter = require('./Prefs/router')
 const roomsRouter = require('./Rooms/router')
 const userRouter = require('./User/router')
-const pushQueuesAndLibrary = require('./lib/pushQueuesAndLibrary')
+const youtubeRouter = require('./Youtube/router')
 const SocketIO = require('socket.io')
 const socketActions = require('./socket')
 const IPC = require('./lib/IPCBridge')
@@ -33,9 +35,9 @@ const {
 } = require('../shared/actionTypes')
 
 async function serverWorker ({ env, startScanner, stopScanner }) {
-  const indexFile = path.join(env.KES_PATH_WEBROOT, 'index.html')
-  const urlPath = env.KES_URL_PATH.replace(/\/?$/, '/') // force trailing slash
-  const jwtKey = await Prefs.getJwtKey(env.KES_ROTATE_KEY)
+  const indexFile = path.join(env.KF_SERVER_PATH_WEBROOT, 'index.html')
+  const urlPath = env.KF_SERVER_URL_PATH.replace(/\/?$/, '/') // force trailing slash
+  const jwtKey = await Prefs.getJwtKey()
   const app = new Koa()
   let server, io
 
@@ -56,21 +58,19 @@ async function serverWorker ({ env, startScanner, stopScanner }) {
       process.exit(1)
     })
 
-    // create socket.io server
-    io = SocketIO(server, {
-      path: urlPath + 'socket.io',
-      serveClient: false,
-    })
-
-    // attach socket.io handlers
+    // create socket.io server and attach handlers
+    io = SocketIO(server, { serveClient: false })
     socketActions(io, jwtKey)
 
     // attach IPC action handlers
     IPC.use(IPCLibraryActions(io))
     IPC.use(IPCMediaActions(io))
 
+    // start YouTube processing on startup (in case we shutdown in the middle of processing)...
+    YoutubeProcessManager.startYoutubeProcessor()
+
     // success callback in 3rd arg
-    server.listen(env.KES_PORT, () => {
+    server.listen(env.KF_SERVER_PORT, () => {
       const port = server.address().port
       const url = `http://${getIPAddress()}${port === 80 ? '' : ':' + port}${urlPath}`
       log.info(`Web server running at ${url}`)
@@ -79,9 +79,6 @@ async function serverWorker ({ env, startScanner, stopScanner }) {
         type: SERVER_WORKER_STATUS,
         payload: { url },
       })
-
-      // scanning on startup?
-      if (env.KES_SCAN) startScanner(() => pushQueuesAndLibrary(io))
     })
   }
 
@@ -118,9 +115,9 @@ async function serverWorker ({ env, startScanner, stopScanner }) {
   })
 
   // http request/response logging
-  app.use(koaLogger((str, args) => (args.length === 6 && args[3] >= 500) ? log.error(str) : log.debug(str)))
+  app.use(koaLogger((str, args) => (args.length === 6 && args[3] >= 500) ? log.error(str) : log.verbose(str)))
 
-  app.use(koaFavicon(path.join(env.KES_PATH_ASSETS, 'favicon.ico')))
+  app.use(koaFavicon(path.join(env.KF_SERVER_PATH_ASSETS, 'favicon.ico')))
   app.use(koaRange)
   app.use(koaBody({ multipart: true }))
 
@@ -137,8 +134,8 @@ async function serverWorker ({ env, startScanner, stopScanner }) {
 
     // verify JWT
     try {
-      const { keToken } = parseCookie(ctx.request.header.cookie)
-      ctx.user = jwtVerify(keToken, jwtKey)
+      const { kfToken } = parseCookie(ctx.request.header.cookie)
+      ctx.user = jwtVerify(kfToken, jwtKey)
     } catch (err) {
       ctx.user = {
         dateUpdated: null,
@@ -150,9 +147,20 @@ async function serverWorker ({ env, startScanner, stopScanner }) {
       }
     }
 
+    // has account been modified since JWT was generated?
+    if (typeof ctx.user.userId === 'number') {
+      const user = await User.getById(ctx.user.userId)
+
+      if (!user || user.dateUpdated !== ctx.user.dateUpdated) {
+        // this seems to lead to an infinite loop, where no rooms are loaded, so you can't sign back in
+        // ctx.throw(409, 'Session expired. Please sign in again.')
+        // todo: send a message another way without causing no rooms to be returned?
+      }
+    }
+
     // validated
     ctx.io = io
-    ctx.startScanner = () => startScanner(() => pushQueuesAndLibrary(io))
+    ctx.startScanner = startScanner
     ctx.stopScanner = stopScanner
 
     await next()
@@ -168,6 +176,7 @@ async function serverWorker ({ env, startScanner, stopScanner }) {
   baseRouter.use(prefsRouter.routes())
   baseRouter.use(roomsRouter.routes())
   baseRouter.use(userRouter.routes())
+  baseRouter.use(youtubeRouter.routes())
   app.use(baseRouter.routes())
 
   // serve index.html with dynamic base tag at the main SPA routes
@@ -199,8 +208,8 @@ async function serverWorker ({ env, startScanner, stopScanner }) {
     app.use(createIndexMiddleware(await promisify(fs.readFile)(indexFile, 'utf8')))
 
     // serve build and asset folders
-    app.use(koaMount(urlPath, koaStatic(env.KES_PATH_WEBROOT)))
-    app.use(koaMount(`${urlPath}assets`, koaStatic(env.KES_PATH_ASSETS)))
+    app.use(koaMount(urlPath, koaStatic(env.KF_SERVER_PATH_WEBROOT)))
+    app.use(koaMount(`${urlPath}assets`, koaStatic(env.KF_SERVER_PATH_ASSETS)))
 
     createServer()
     return
@@ -236,7 +245,7 @@ async function serverWorker ({ env, startScanner, stopScanner }) {
   app.use(hotMiddleware)
 
   // serve assets since webpack-dev-server is unaware of this folder
-  app.use(koaMount(`${urlPath}assets`, koaStatic(env.KES_PATH_ASSETS)))
+  app.use(koaMount(`${urlPath}assets`, koaStatic(env.KF_SERVER_PATH_ASSETS)))
 }
 
 module.exports = serverWorker

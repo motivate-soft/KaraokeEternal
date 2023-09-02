@@ -19,9 +19,7 @@ const RoomSelect = props => {
   }, [onPasswordRef])
 
   // once per mount
-  useEffect(() => {
-    (async () => dispatch(fetchRooms()))()
-  }, [dispatch])
+  useEffect(() => dispatch(fetchRooms()), [dispatch])
 
   // if there's only one open room, select it automatically
   useEffect(() => {

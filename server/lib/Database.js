@@ -1,8 +1,7 @@
+const log = require('./Log').getLogger(`${process.env.KF_CHILD_PROCESS || 'main'}[${process.pid}]`)
 const path = require('path')
-const fse = require('fs-extra')
 const sqlite3 = require('sqlite3')
 const { open } = require('sqlite')
-const log = require('./Log')('db')
 let _db
 
 class Database {
@@ -19,27 +18,27 @@ class Database {
     }
   }
 
-  static async open ({ file, ro = true } = {}) {
+  static async open ({ readonly = true, env = process.env } = {}) {
     if (_db) throw new Error('Database already open')
 
-    log.info('Opening database file %s %s', ro ? '(read-only)' : '(writeable)', file)
-
-    // create path if it doesn't exist
-    fse.ensureDirSync(path.dirname(file))
+    const dbPath = path.resolve(env.KF_SERVER_PATH_DATA, 'database.sqlite3')
+    log.info('Opening database file %s %s', readonly ? '(read-only)' : '(writeable)', dbPath)
 
     const db = await open({
-      filename: file,
+      filename: dbPath,
       driver: sqlite3.Database,
-      mode: ro ? sqlite3.OPEN_READONLY : null,
+      mode: readonly ? sqlite3.OPEN_READONLY : null,
     })
 
-    if (!ro) {
+    if (!readonly) {
       await db.migrate({
         migrationsPath: path.join(__dirname, 'schemas'),
       })
 
-      await db.run('PRAGMA journal_mode = WAL;')
-      await db.run('PRAGMA foreign_keys = ON;')
+      // SQLite locking via WAL doesn't seem to work under WSL...
+      if (!Object.prototype.hasOwnProperty.call(process.env, 'WSL_DISTRO_NAME')) {
+        await db.run('PRAGMA journal_mode = WAL;')
+      }
     }
 
     _db = db

@@ -132,9 +132,21 @@ const ACTION_HANDLERS = {
 const initialState = {
   isScanning: false,
   isReplayGainEnabled: false,
+  isUsernameRequired: true,
+  isPasswordRequired: true,
   paths: { result: [], entities: {} },
   scannerPct: 0,
   scannerText: '',
+  isYouTubeEnabled: false,
+  isKaraokeGeneratorEnabled: false,
+  isConcurrentAlignmentEnabled: false,
+  spleeterPath: 'spleeter',
+  autoLyrixHost: 'http://localhost:3000',
+  ffmpegPath: 'ffmpeg',
+  upcomingLyricsColor: '#fff',
+  playedLyricsColor: '#d9a000',
+  tmpOutputPath: 'tmp',
+  maxYouTubeProcesses: 3,
 }
 
 export default function prefsReducer (state = initialState, action) {

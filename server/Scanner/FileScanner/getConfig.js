@@ -1,14 +1,14 @@
 const path = require('path')
-const log = require('../../lib/Log')('FileScanner')
+const log = require('../../lib/Log').getLogger('FileScanner')
 const fs = require('fs')
 const { NodeVM } = require('vm2')
-const CONFIG = '_kes.v1.js'
+const KF_CONFIG = '_kfconfig.js'
 
 // search each folder from dir up to baseDir
 function getConfig (dir, baseDir) {
   dir = path.normalize(dir)
   baseDir = path.normalize(baseDir)
-  const cfgPath = path.resolve(dir, CONFIG)
+  const cfgPath = path.resolve(dir, KF_CONFIG)
 
   try {
     const userScript = fs.readFileSync(cfgPath, 'utf-8')

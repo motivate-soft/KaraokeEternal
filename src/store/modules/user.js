@@ -4,19 +4,18 @@ import { fetchPrefs } from './prefs'
 import HttpApi from 'lib/HttpApi'
 import history from 'lib/history'
 import {
-  CREATE_ACCOUNT,
   LOGIN,
   LOGOUT,
-  REQUEST_ACCOUNT,
-  SOCKET_AUTH_ERROR,
-  SOCKET_REQUEST_CONNECT,
+  CREATE_ACCOUNT,
   UPDATE_ACCOUNT,
+  REQUEST_ACCOUNT,
   _SUCCESS,
   _ERROR,
+  SOCKET_REQUEST_CONNECT,
+  SOCKET_AUTH_ERROR,
 } from 'shared/actionTypes'
 
 const api = new HttpApi('')
-const basename = new URL(document.baseURI).pathname
 
 // ------------------------------------
 // Login
@@ -69,7 +68,7 @@ export function login (creds) {
         const redirect = new URLSearchParams(history.location.search).get('redirect')
 
         if (redirect) {
-          history.push(basename.replace(/\/$/, '') + redirect)
+          history.push(redirect)
         }
       })
       .catch(err => {
@@ -164,7 +163,7 @@ export function createAccount (data, isFirstRun) {
         dispatch(createSuccess())
 
         return dispatch(login({
-          username: data.get('username'),
+          username: res.username,
           password: data.get('newPassword'),
           roomId: isFirstRun ? res.roomId : data.get('roomId'),
           roomPassword: data.get('roomPassword'),
@@ -215,43 +214,6 @@ export function updateAccount (data) {
       })
       .catch(err => {
         dispatch(updateError(err))
-      })
-  }
-}
-
-// ------------------------------------
-// Request account (does not refresh JWT)
-// ------------------------------------
-function requestAccount () {
-  return {
-    type: REQUEST_ACCOUNT,
-  }
-}
-
-function receiveAccount (response) {
-  return {
-    type: REQUEST_ACCOUNT + _SUCCESS,
-    payload: response
-  }
-}
-
-function requestAccountError (err) {
-  return {
-    type: REQUEST_ACCOUNT + _ERROR,
-    payload: err.message, // silent (don't set error property)
-  }
-}
-
-export function fetchAccount () {
-  return (dispatch, getState) => {
-    dispatch(requestAccount())
-
-    return api('GET', 'user')
-      .then(user => {
-        dispatch(receiveAccount(user))
-      })
-      .catch(err => {
-        dispatch(requestAccountError(err))
       })
   }
 }

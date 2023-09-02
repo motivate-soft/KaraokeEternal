@@ -1,187 +1,127 @@
 import PropTypes from 'prop-types'
-import React, { useCallback, useState } from 'react'
-import { useDispatch } from 'react-redux'
-import { useSwipeable } from 'react-swipeable'
-
-import Button from 'components/Button'
+import React from 'react'
 import Buttons from 'components/Buttons'
+import Icon from 'components/Icon'
+import Swipeable from 'components/Swipeable'
+import ToggleAnimation from 'components/ToggleAnimation'
 import UserImage from 'components/UserImage'
 import styles from './QueueItem.css'
 
-import { requestPlayNext } from 'store/modules/status'
-import { showSongInfo } from 'store/modules/songInfo'
-import { queueSong, removeItem } from '../../modules/queue'
-import { toggleSongStarred } from 'store/modules/userStars'
-import { showErrorMessage } from 'store/modules/ui'
+class QueueItem extends React.Component {
+  static propTypes = {
+    artist: PropTypes.string.isRequired,
+    dateUpdated: PropTypes.number.isRequired,
+    errorMessage: PropTypes.string.isRequired,
+    isCurrent: PropTypes.bool.isRequired,
+    isErrored: PropTypes.bool.isRequired,
+    isInfoable: PropTypes.bool.isRequired,
+    isOwner: PropTypes.bool.isRequired,
+    isPlayed: PropTypes.bool.isRequired,
+    isRemovable: PropTypes.bool.isRequired,
+    isSkippable: PropTypes.bool.isRequired,
+    isStarred: PropTypes.bool.isRequired,
+    isUpcoming: PropTypes.bool.isRequired,
+    pctPlayed: PropTypes.number.isRequired,
+    queueId: PropTypes.number.isRequired,
+    songId: PropTypes.number.isRequired,
+    title: PropTypes.string.isRequired,
+    userId: PropTypes.number.isRequired,
+    userDisplayName: PropTypes.string.isRequired,
+    wait: PropTypes.string,
+    // actions
+    onErrorInfoClick: PropTypes.func.isRequired,
+    onRemoveClick: PropTypes.func.isRequired,
+    onSkipClick: PropTypes.func.isRequired,
+    onInfoClick: PropTypes.func.isRequired,
+    onStarClick: PropTypes.func.isRequired,
+  }
 
-const QueueItem = ({
-  artist,
-  dateUpdated,
-  errorMessage,
-  isCurrent,
-  isErrored,
-  isInfoable,
-  isMovable,
-  isOwner,
-  isPlayed,
-  isRemovable,
-  isSkippable,
-  isStarred,
-  isUpcoming,
-  onMoveClick,
-  pctPlayed,
-  queueId,
-  songId,
-  title,
-  userId,
-  userDisplayName,
-  wait,
-  ...props
-}) => {
-  const [isExpanded, setExpanded] = useState(false)
+  state = {
+    isExpanded: false,
+  }
 
-  const dispatch = useDispatch()
-  const handleErrorInfoClick = useCallback(() => dispatch(showErrorMessage(errorMessage)), [dispatch, errorMessage])
-  const handleInfoClick = useCallback(() => dispatch(showSongInfo(songId)), [dispatch, songId])
-  const handleMoveClick = useCallback(() => {
-    onMoveClick(queueId)
-    setExpanded(false)
-  }, [onMoveClick, queueId])
-  const handleRequeueClick = useCallback(() => {
-    dispatch(queueSong(songId))
-    setExpanded(false)
-  }, [dispatch, songId])
-  const handleRemoveClick = useCallback(() => dispatch(removeItem(queueId)), [dispatch, queueId])
-  const handleSkipClick = useCallback(() => dispatch(requestPlayNext()), [dispatch])
-  const handleStarClick = useCallback(() => dispatch(toggleSongStarred(songId)), [dispatch, songId])
+  render () {
+    const { props, state } = this
 
-  const swipeHandlers = useSwipeable({
-    onSwipedLeft: useCallback(() => {
-      setExpanded(isErrored || isInfoable || isRemovable || isSkippable)
-    }, [isErrored, isInfoable, isRemovable, isSkippable]),
-    onSwipedRight: useCallback(() => setExpanded(false), []),
-    preventScrollOnSwipe: true,
-    trackMouse: true,
-  })
+    return (
+      <Swipeable
+        onSwipedLeft={this.handleSwipedLeft}
+        onSwipedRight={this.handleSwipedRight}
+        preventDefaultTouchmoveEvent
+        trackMouse
+        style={{ backgroundSize: (props.isCurrent && props.pctPlayed < 2 ? 2 : props.pctPlayed) + '% 100%' }}
+        className={styles.container}
+      >
+        <div className={styles.content}>
+          <div className={`${styles.imageContainer} ${props.isPlayed ? styles.greyed : ''}`}>
+            <UserImage userId={props.userId} dateUpdated={props.dateUpdated} height={72} className={styles.image}/>
+            <div className={styles.waitContainer}>
+              {props.isUpcoming &&
+                <div className={`${styles.wait} ${props.isOwner ? styles.isOwner : ''}`}>
+                  {props.wait}
+                </div>
+              }
+            </div>
+          </div>
 
-  return (
-    <div
-      {...swipeHandlers}
-      className={styles.container}
-      style={{ backgroundSize: (isCurrent && pctPlayed < 2 ? 2 : pctPlayed) + '% 100%' }}
-    >
-      <div className={styles.content}>
-        <div className={`${styles.imageContainer} ${isPlayed ? styles.greyed : ''}`}>
-          <UserImage userId={userId} dateUpdated={dateUpdated} height={72} className={styles.image}/>
-          <div className={styles.waitContainer}>
-            {isUpcoming &&
-              <div className={`${styles.wait} ${isOwner ? styles.isOwner : ''}`}>
-                {wait}
+          <div className={`${styles.primary} ${props.isPlayed ? styles.greyed : ''}`}>
+            <div className={styles.innerPrimary}>
+              <div className={styles.title}>{props.title}</div>
+              <div className={styles.artist}>{props.artist}</div>
+            </div>
+            <div className={`${styles.user} ${props.isOwner ? styles.isOwner : ''}`}>
+              {props.userDisplayName}
+            </div>
+          </div>
+
+          <Buttons btnWidth={50} isExpanded={state.isExpanded}>
+            {props.isErrored &&
+              <div onClick={this.handleErrorInfoClick} className={`${styles.btn} ${styles.danger}`}>
+                <Icon icon='INFO_OUTLINE' size={44} />
               </div>
             }
-          </div>
+            <div onClick={this.handleStarClick} className={`${styles.btn} ${props.isStarred ? styles.active : ''}`}>
+              <ToggleAnimation toggle={props.isStarred} className={styles.animateStar}>
+                <Icon size={44} icon={'STAR_FULL'}/>
+              </ToggleAnimation>
+            </div>
+            {props.isInfoable &&
+              <div onClick={this.handleInfoClick} className={`${styles.btn} ${styles.active}`} data-hide>
+                <Icon icon='INFO_OUTLINE' size={44} />
+              </div>
+            }
+            {props.isRemovable &&
+              <div onClick={this.handleRemoveClick} className={`${styles.btn} ${styles.danger}`} data-hide>
+                <Icon icon='CLEAR' size={44} />
+              </div>
+            }
+            {props.isSkippable &&
+              <div onClick={props.onSkipClick} className={`${styles.btn} ${styles.danger}`} data-hide>
+                <Icon icon='PLAY_NEXT' size={44} />
+              </div>
+            }
+          </Buttons>
         </div>
+      </Swipeable>
+    )
+  }
 
-        <div className={`${styles.primary} ${isPlayed ? styles.greyed : ''}`}>
-          <div className={styles.innerPrimary}>
-            <div className={styles.title}>{title}</div>
-            <div className={styles.artist}>{artist}</div>
-          </div>
-          <div className={`${styles.user} ${isOwner ? styles.isOwner : ''}`}>
-            {userDisplayName}
-          </div>
-        </div>
+  handleSwipedLeft = ({ event }) => {
+    const { isErrored, isInfoable, isRemovable, isSkippable } = this.props
 
-        <Buttons btnWidth={50} isExpanded={isExpanded}>
-          {isErrored &&
-            <Button
-              className={`${styles.btn} ${styles.danger}`}
-              icon='INFO_OUTLINE'
-              onClick={handleErrorInfoClick}
-              size={44}
-            />
-          }
-          <Button
-            animateClassName={styles.animateStar}
-            className={`${styles.btn} ${isStarred ? styles.active : ''}`}
-            icon={'STAR_FULL'}
-            onClick={handleStarClick}
-            size={44}
-          />
-          {isPlayed &&
-            <Button
-              className={`${styles.btn} ${styles.active}`}
-              data-hide
-              icon='REFRESH'
-              onClick={handleRequeueClick}
-              size={48}
-            />
-          }
-          {isMovable &&
-            <Button
-              className={`${styles.btn} ${styles.active}`}
-              data-hide
-              icon='MOVE_TOP'
-              onClick={handleMoveClick}
-              size={44}
-            />
-          }
-          {isInfoable &&
-            <Button
-              className={`${styles.btn} ${styles.active}`}
-              data-hide
-              icon='INFO_OUTLINE'
-              onClick={handleInfoClick}
-              size={44}
-            />
-          }
-          {isRemovable &&
-            <Button
-              className={`${styles.btn} ${styles.danger}`}
-              data-hide
-              icon='CLEAR'
-              onClick={handleRemoveClick}
-              size={44}
-            />
-          }
-          {isSkippable &&
-            <Button
-              className={`${styles.btn} ${styles.danger}`}
-              data-hide
-              icon='PLAY_NEXT'
-              onClick={handleSkipClick}
-              size={44}
-            />
-          }
-        </Buttons>
-      </div>
-    </div>
-  )
+    this.setState({
+      isExpanded: isErrored || isInfoable || isRemovable || isSkippable,
+    })
+  }
+
+  handleSwipedRight = ({ event }) => {
+    this.setState({ isExpanded: false })
+  }
+
+  handleStarClick = () => this.props.onStarClick(this.props.songId)
+  handleInfoClick = () => this.props.onInfoClick(this.props.songId)
+  handleRemoveClick = () => this.props.onRemoveClick(this.props.queueId)
+  handleErrorInfoClick = () => this.props.onErrorInfoClick(this.props.errorMessage)
 }
 
-QueueItem.propTypes = {
-  artist: PropTypes.string.isRequired,
-  dateUpdated: PropTypes.number.isRequired,
-  errorMessage: PropTypes.string.isRequired,
-  isCurrent: PropTypes.bool.isRequired,
-  isErrored: PropTypes.bool.isRequired,
-  isInfoable: PropTypes.bool.isRequired,
-  isMovable: PropTypes.bool.isRequired,
-  isOwner: PropTypes.bool.isRequired,
-  isPlayed: PropTypes.bool.isRequired,
-  isRemovable: PropTypes.bool.isRequired,
-  isSkippable: PropTypes.bool.isRequired,
-  isStarred: PropTypes.bool.isRequired,
-  isUpcoming: PropTypes.bool.isRequired,
-  pctPlayed: PropTypes.number.isRequired,
-  queueId: PropTypes.number.isRequired,
-  songId: PropTypes.number.isRequired,
-  title: PropTypes.string.isRequired,
-  userId: PropTypes.number.isRequired,
-  userDisplayName: PropTypes.string.isRequired,
-  wait: PropTypes.string,
-  // actions
-  onMoveClick: PropTypes.func.isRequired,
-}
-
-export default React.memo(QueueItem)
+export default QueueItem

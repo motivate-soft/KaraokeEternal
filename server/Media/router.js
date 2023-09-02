@@ -2,9 +2,9 @@ const { promisify } = require('util')
 const fs = require('fs')
 const stat = promisify(fs.stat)
 const path = require('path')
-const log = require('../lib/Log')('Media')
+const log = require('../lib/Log').getLogger('Media')
 const getCdgName = require('../lib/getCdgName')
-const KoaRouter = require('@koa/router')
+const KoaRouter = require('koa-router')
 const router = KoaRouter({ prefix: '/api/media' })
 const Library = require('../Library')
 const Media = require('./Media')
@@ -82,11 +82,16 @@ router.all('/:mediaId/prefer', async (ctx, next) => {
   ctx.status = 200
 
   // emit (potentially) updated queues to each room
-  for (const { room, roomId } of Rooms.getActive(ctx.io)) {
-    ctx.io.to(room).emit('action', {
-      type: QUEUE_PUSH,
-      payload: await Queue.get(roomId),
-    })
+  for (const room of ctx.io.sockets.adapter.rooms.keys()) {
+    // ignore auto-generated per-user rooms
+    if (room.startsWith(Rooms.prefix())) {
+      const roomId = parseInt(room.substring(Rooms.prefix().length), 10)
+
+      ctx.io.to(room).emit('action', {
+        type: QUEUE_PUSH,
+        payload: await Queue.get(roomId),
+      })
+    }
   }
 
   // emit (potentially) new duration

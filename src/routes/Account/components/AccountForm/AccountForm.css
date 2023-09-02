@@ -12,10 +12,6 @@
   margin-bottom: var(--input-margin);
 }
 
-select.field {
-  cursor: pointer;
-}
-
 .name {
   margin: 0 0 0 var(--input-margin);
 }

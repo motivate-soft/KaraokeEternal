@@ -5,7 +5,7 @@ import HttpApi from 'lib/HttpApi'
 import styles from './CDGPlayer.css'
 
 const api = new HttpApi('media')
-const BACKDROP_PADDING = 10 // px at 1:1 scale
+const BACKDROP_PADDING = 5 // px at 1:1 scale
 const BORDER_RADIUS = parseInt(getComputedStyle(document.body).getPropertyValue('--border-radius'))
 
 class CDGPlayer extends React.Component {
@@ -123,9 +123,6 @@ class CDGPlayer extends React.Component {
     api('GET', `/${this.props.mediaId}?type=cdg`)
       .then(res => res.arrayBuffer())
       .then(buffer => {
-        // in case we've unmounted by this point
-        if (!this.audio.current) return
-
         this.cdg.load(buffer)
         this.audio.current.src = `${document.baseURI}api/media/${this.props.mediaId}?type=audio`
         this.audio.current.load()
@@ -201,7 +198,6 @@ class CDGPlayer extends React.Component {
         this.lastBitmap = bitmap // cache for re-painting if canvas size changes
         this.paintCDG(bitmap)
       })
-      .catch(err => this.props.onError(err.message))
   }
 
   stopCDG = () => cancelAnimationFrame(this.frameId)

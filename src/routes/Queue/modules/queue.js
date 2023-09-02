@@ -1,21 +1,12 @@
 import {
   LOGOUT,
   QUEUE_ADD,
-  QUEUE_MOVE,
   QUEUE_PUSH,
   QUEUE_REMOVE,
   _SUCCESS,
 } from 'shared/actionTypes'
 
-// set an item's prevQueueId
-export function moveItem (queueId, prevQueueId) {
-  return {
-    type: QUEUE_MOVE,
-    payload: { queueId, prevQueueId },
-  }
-}
-
-// add to queue
+// add song to queue
 export function queueSong (songId) {
   return (dispatch, getState) => {
     dispatch({
@@ -26,10 +17,22 @@ export function queueSong (songId) {
   }
 }
 
+// add youtube video to queue
+export function queueYoutubeVideo (youtubeVideoId, thumbnail, url, duration, artist, title, lyrics, karaoke) {
+  return (dispatch, getState) => {
+    dispatch({
+      type: QUEUE_ADD,
+      meta: { isOptimistic: true },
+      payload: { youtubeVideoId, thumbnail, url, duration, artist, title, lyrics, karaoke },
+    })
+  }
+}
+
 // remove from queue
 export function removeItem (queueId) {
   return {
     type: QUEUE_REMOVE,
+    meta: { isOptimistic: true },
     payload: { queueId },
   }
 }
@@ -44,20 +47,26 @@ const ACTION_HANDLERS = {
   }),
   [QUEUE_ADD]: (state, { payload }) => {
     // optimistic
-    const nextQueueId = state.result.length ? state.result[state.result.length - 1] + 1 : 1
+    // @todo: should probably use a result.length + rand index to avoid possible collision?
+    const fakeQueueId = state.result.length ? state.result[state.result.length - 1] + 1 : 0
 
     return {
       ...state,
-      result: [...state.result, nextQueueId],
+      result: [...state.result, fakeQueueId],
       entities: {
         ...state.entities,
-        [nextQueueId]: {
-          ...payload,
-          queueId: nextQueueId,
-          prevQueueId: nextQueueId - 1 || null,
-          isOptimistic: true
-        },
+        [fakeQueueId]: { ...payload, isOptimistic: true },
       }
+    }
+  },
+  [QUEUE_REMOVE]: (state, { payload }) => {
+    // optimistic
+    const result = state.result.slice()
+    result.splice(result.indexOf(payload.queueId), 1)
+
+    return {
+      ...state,
+      result,
     }
   },
   [QUEUE_PUSH]: (state, { payload }) => ({

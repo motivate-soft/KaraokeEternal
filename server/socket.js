@@ -1,4 +1,4 @@
-const log = require('./lib/Log')('server')
+const log = require('./lib/Log').getLogger(`server[${process.pid}]`)
 const jwtVerify = require('jsonwebtoken').verify
 
 const parseCookie = require('./lib/parseCookie')
@@ -10,6 +10,7 @@ const PrefsSocket = require('./Prefs/socket')
 const Rooms = require('./Rooms')
 const Queue = require('./Queue')
 const QueueSocket = require('./Queue/socket')
+const User = require('./User')
 const {
   LIBRARY_PUSH,
   QUEUE_PUSH,
@@ -31,13 +32,20 @@ const handlers = {
 
 module.exports = function (io, jwtKey) {
   io.on('connection', async (sock) => {
-    const { keToken } = parseCookie(sock.handshake.headers.cookie)
+    const { kfToken } = parseCookie(sock.handshake.headers.cookie)
     const clientLibraryVersion = parseInt(sock.handshake.query.library, 10)
     const clientStarsVersion = parseInt(sock.handshake.query.stars, 10)
 
     // authenticate the JWT sent via cookie in http handshake
     try {
-      sock.user = jwtVerify(keToken, jwtKey)
+      sock.user = jwtVerify(kfToken, jwtKey)
+
+      // has account been modified since JWT was generated?
+      const user = await User.getById(sock.user.userId)
+
+      if (!user || user.dateUpdated !== sock.user.dateUpdated) {
+        throw new Error('account modtime mismatch')
+      }
 
       // success
       log.verbose('%s (%s) connected from %s', sock.user.name, sock.id, sock.handshake.address)
@@ -67,10 +75,13 @@ module.exports = function (io, jwtKey) {
       )
 
       // any players left in room?
-      if (!Rooms.isPlayerPresent(io, sock.user.roomId)) {
+      for (const s of io.of('/').sockets.values()) {
+        if (s.user && s.user.roomId === sock.user.roomId && s._lastPlayerStatus) {
+          break
+        }
+
         io.to(Rooms.prefix(sock.user.roomId)).emit('action', {
           type: PLAYER_LEAVE,
-          payload: { socketId: sock.id },
         })
       }
     })
@@ -91,7 +102,7 @@ module.exports = function (io, jwtKey) {
       }
 
       try {
-        await handlers[type](sock, action, acknowledge)
+        await handlers[type](sock, action, acknowledge, io)
       } catch (err) {
         log.error(err)
 
@@ -102,14 +113,12 @@ module.exports = function (io, jwtKey) {
       }
     })
 
-    // push prefs (admin only)
-    if (sock.user.isAdmin) {
-      log.verbose('pushing prefs to %s (%s)', sock.user.name, sock.id)
-      io.to(sock.id).emit('action', {
-        type: PREFS_PUSH,
-        payload: await Prefs.get(),
-      })
-    }
+    // push prefs (only public prefs if the user is not an admin)
+    log.verbose('pushing prefs to %s (%s)', sock.user.name, sock.id)
+    io.to(sock.id).emit('action', {
+      type: PREFS_PUSH,
+      payload: await Prefs.get(!sock.user.isAdmin),
+    })
 
     // push library (only if client's is outdated)
     if (clientLibraryVersion !== Library.cache.version) {

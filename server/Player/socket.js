@@ -65,13 +65,12 @@ const ACTION_HANDLERS = {
   [PLAYER_EMIT_LEAVE]: async (sock, { payload }) => {
     sock._lastPlayerStatus = null
 
-    // any players left in room?
-    if (!Rooms.isPlayerPresent(sock.server, sock.user.roomId)) {
-      sock.server.to(Rooms.prefix(sock.user.roomId)).emit('action', {
-        type: PLAYER_LEAVE,
-        payload: { socketId: sock.id },
-      })
-    }
+    sock.server.to(Rooms.prefix(sock.user.roomId)).emit('action', {
+      type: PLAYER_LEAVE,
+      payload: {
+        socketId: sock.id,
+      }
+    })
   },
 }
 

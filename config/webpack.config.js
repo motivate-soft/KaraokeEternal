@@ -1,10 +1,11 @@
 const path = require('path')
+const fs = require('fs')
 const webpack = require('webpack')
 const ReactRefreshWebpackPlugin = require('@pmmmwh/react-refresh-webpack-plugin')
 const CaseSensitivePathsPlugin = require('case-sensitive-paths-webpack-plugin')
 const HtmlWebpackPlugin = require('html-webpack-plugin')
 const MiniCssExtractPlugin = require('mini-css-extract-plugin')
-const applyLicenseConfig = require('./webpack.license.config')
+const { LicenseWebpackPlugin } = require('license-webpack-plugin')
 
 const NODE_ENV = process.env.NODE_ENV || 'production'
 const __DEV__ = NODE_ENV === 'development'
@@ -43,12 +44,12 @@ const config = {
       __DEV__,
       __TEST__,
       __PROD__,
-      __KE_VERSION__: JSON.stringify(process.env.npm_package_version),
-      __KE_URL_HOME__: JSON.stringify('https://www.karaoke-eternal.com'),
-      __KE_URL_LICENSE__: JSON.stringify('/licenses.txt'),
-      __KE_URL_REPO__: JSON.stringify('https://www.karaoke-eternal.com/repo'),
-      __KE_URL_SPONSOR__: JSON.stringify('https://www.karaoke-eternal.com/sponsor'),
-      __KE_COPYRIGHT__: JSON.stringify(`2019-${new Date().getFullYear()}`),
+      __KF_VERSION__: JSON.stringify(process.env.npm_package_version),
+      __KF_URL_HOME__: JSON.stringify('https://www.karaoke-forever.com'),
+      __KF_URL_LICENSE__: JSON.stringify('/licenses.txt'),
+      __KF_URL_REPO__: JSON.stringify('https://github.com/bhj/karaoke-forever/'),
+      __KF_URL_SPONSOR__: JSON.stringify('https://github.com/sponsors/bhj/'),
+      __KF_COPYRIGHT__: JSON.stringify(`2019-${new Date().getFullYear()} RadRoot LLC`),
     })),
     new CaseSensitivePathsPlugin(),
     new MiniCssExtractPlugin({
@@ -64,6 +65,27 @@ const config = {
     },
   },
   stats: 'minimal',
+}
+
+if (__PROD__) {
+  config.plugins.push(new LicenseWebpackPlugin({
+    addBanner: true,
+    outputFilename: 'licenses.txt',
+    perChunkOutput: false,
+    renderLicenses: (modules) => {
+      let txt = ''
+
+      modules.forEach(m => {
+        if (!m.licenseText) return
+
+        txt += '\n' + '*'.repeat(71) + '\n\n'
+        txt += m.packageJson.name + '\n'
+        txt += m.licenseText.replace(/(\S)\n(\S)/gm, '$1 $2')
+      })
+
+      return 'Karaoke Forever\n' + fs.readFileSync('./LICENSE', 'utf8') + txt
+    },
+  }))
 }
 
 // HTML Template
@@ -93,14 +115,14 @@ config.module.rules.push({
 
 // Global Style
 config.module.rules.push({
-  test: /(global)\.css$/,
-  use: [{
-    loader: MiniCssExtractPlugin.loader,
+  test : /(global)\.css$/,
+  use  : [{
+    loader : MiniCssExtractPlugin.loader,
   }, {
-    loader: 'css-loader',
-    options: {
-      modules: false,
-      sourceMap: false,
+    loader  : 'css-loader',
+    options : {
+      modules   : false,
+      sourceMap : false,
     }
   }],
 })
@@ -108,10 +130,10 @@ config.module.rules.push({
 // CSS Modules
 config.module.rules.push({
   test: /\.css$/,
-  exclude: /(global)\.css$/,
+  exclude : /(global)\.css$/,
   use: [
     {
-      loader: MiniCssExtractPlugin.loader,
+      loader : MiniCssExtractPlugin.loader,
     }, {
       loader: 'css-loader',
       options: {
@@ -126,30 +148,43 @@ config.module.rules.push({
 // Files
 config.module.rules.push(
   {
-    test: /\.woff2(\?.*)?$/,
-    type: 'asset/resource',
+    test    : /\.woff2(\?.*)?$/,
+    loader  : 'url-loader',
+    options : {
+      limit    : '10000',
+      mimetype : 'application/font-woff2'
+    }
   },
   {
-    test: /\.svg(\?.*)?$/,
-    type: 'asset',
+    test    : /\.svg(\?.*)?$/,
+    loader  : 'url-loader',
+    options : {
+      limit    : '10000',
+      mimetype : 'image/svg+xml'
+    }
   },
   {
-    test: /\.(png|jpg|gif)$/,
-    type: 'asset',
+    test    : /\.(png|jpg|gif)$/,
+    loader  : 'url-loader',
+    options : {
+      limit : '8192'
+    }
   }
 )
 
 // Markdown
-config.module.rules.push({
-  test: /\.md$/,
-  use: [
-    {
-      loader: 'html-loader',
-    },
-    {
-      loader: 'markdown-loader',
-    }
-  ]
-})
+config.module.rules.push(
+  {
+    test: /\.md$/,
+    use: [
+      {
+        loader: 'html-loader'
+      },
+      {
+        loader: 'markdown-loader',
+      }
+    ]
+  },
+)
 
-module.exports = __PROD__ ? applyLicenseConfig(config) : config
+module.exports = config

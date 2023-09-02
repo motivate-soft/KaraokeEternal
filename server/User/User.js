@@ -1,6 +1,5 @@
 const db = require('../lib/Database').db
 const sql = require('sqlate')
-const Queue = require('../Queue')
 
 class User {
   /**
@@ -70,40 +69,21 @@ class User {
       throw new Error('userId must be a number')
     }
 
-    // remove user's queue items
-    const queueQuery = sql`
-      SELECT queueId
-      FROM queue
+    let res, query
+
+    query = sql`
+      DELETE FROM queue
       WHERE userId = ${userId}
     `
-    const queueRows = await db.all(String(queueQuery), queueQuery.parameters)
+    res = await db.run(String(query), query.parameters)
 
-    for (const row of queueRows) {
-      await Queue.remove(row.queueId)
-    }
-
-    // remove user's song stars
-    const songStarsQuery = sql`
-      DELETE FROM songStars
-      WHERE userId = ${userId}
-    `
-    await db.run(String(songStarsQuery), songStarsQuery.parameters)
-
-    // remove user's artist stars
-    const artistStarsQuery = sql`
-      DELETE FROM artistStars
-      WHERE userId = ${userId}
-    `
-    await db.run(String(artistStarsQuery), artistStarsQuery.parameters)
-
-    // remove the user
-    const usersQuery = sql`
+    query = sql`
       DELETE FROM users
       WHERE userId = ${userId}
     `
-    const usersQueryRes = await db.run(String(usersQuery), usersQuery.parameters)
+    res = await db.run(String(query), query.parameters)
 
-    if (!usersQueryRes.changes) {
+    if (!res.changes) {
       throw new Error(`unable to remove userId: ${userId}`)
     }
   }
@@ -114,11 +94,13 @@ class User {
    * @param  {Bool}  creds  whether to include username and password in result
    * @return {Promise}      user object
    */
-  static async _get ({ userId, username }, creds = false) {
+  static async _get ({ userId, username }, creds) {
+    if (username) username = username.toLowerCase()
+
     const query = sql`
       SELECT *
       FROM users
-      WHERE ${typeof userId === 'number' ? sql`userId = ${userId}` : sql`LOWER(username) = ${username.toLowerCase()}`}
+      WHERE ${typeof userId === 'number' ? sql`userId = ${userId}` : sql`LOWER(username) = ${username}`}
     `
 
     const user = await db.get(String(query), query.parameters)

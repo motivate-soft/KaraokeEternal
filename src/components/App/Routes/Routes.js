@@ -1,54 +1,35 @@
 import PropTypes from 'prop-types'
 import React from 'react'
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
-import { useSelector } from 'react-redux'
+import { Redirect, Route, Switch } from 'react-router-dom'
+import ProtectedRoute from './ProtectedRoute'
 
 import AccountView from 'routes/Account/views'
 import LibraryView from 'routes/Library/views'
 import QueueView from 'routes/Queue/views/QueueView'
 const PlayerView = React.lazy(() => import('routes/Player/views/PlayerView'))
 
-const AppRoutes = (props) => (
-  <Routes>
-    <Route path='/account' element={<AccountView/>}/>
-    <Route path='/library' element={
-      <RequireAuth path='/library' redirectTo='/account'>
-        <LibraryView/>
-      </RequireAuth>
-    }/>
-    <Route path='/queue' element={
-      <RequireAuth path='/queue' redirectTo='/account'>
-        <QueueView/>
-      </RequireAuth>
-    }/>
-    <Route path='/player' element={
-      <RequireAuth path='/player' redirectTo='/account'>
-        <PlayerView/>
-      </RequireAuth>
-    }/>
-    <Route path='/' element={<Navigate to='/library'/>}/>
-  </Routes>
+const Routes = (props) => (
+  <Switch>
+    <Route exact path='/account'>
+      <AccountView setHeader={props.setHeader} />
+    </Route>
+    <ProtectedRoute exact path='/library' redirect='/account'>
+      <LibraryView setHeader={props.setHeader} />
+    </ProtectedRoute>
+    <ProtectedRoute exact path='/queue' redirect='/account'>
+      <QueueView setHeader={props.setHeader} />
+    </ProtectedRoute>
+    <ProtectedRoute exact path='/player' redirect='/account'>
+      <PlayerView setHeader={props.setHeader} />
+    </ProtectedRoute>
+    <Route>
+      <Redirect to='/library' />
+    </Route>
+  </Switch>
 )
 
-export default AppRoutes
-
-const RequireAuth = ({ children, path, redirectTo }) => {
-  const isAuthenticated = useSelector(state => state.user.userId !== null)
-  const location = useLocation()
-
-  if (!isAuthenticated) {
-    // set their originally-desired location in query parameter
-    const params = new URLSearchParams(location.search)
-    params.set('redirect', path)
-
-    return <Navigate to={redirectTo + '?' + params.toString() }/>
-  }
-
-  return children
+Routes.propTypes = {
+  setHeader: PropTypes.func.isRequired,
 }
 
-RequireAuth.propTypes = {
-  children: PropTypes.node.isRequired,
-  path: PropTypes.string.isRequired,
-  redirectTo: PropTypes.string.isRequired,
-}
+export default Routes

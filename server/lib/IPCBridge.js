@@ -1,14 +1,14 @@
-const log = require('./Log')('IPCBridge')
+const log = require('./Log').getLogger('IPC')
 const {
   _ERROR,
   _SUCCESS,
 } = require('../../shared/actionTypes')
 
-const PROCESS_NAME = process.env.KES_CHILD_PROCESS || 'main'
+const PROCESS_NAME = process.env.KF_CHILD_PROCESS || 'main'
 const children = []
 let handlers = {}
 const reqs = {}
-const isParent = typeof process.env.KES_CHILD_PROCESS === 'undefined' // @todo
+const isParent = typeof process.env.KF_CHILD_PROCESS === 'undefined' // @todo
 const isChild = !isParent
 let actionId = 0
 

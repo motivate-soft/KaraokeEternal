@@ -15,9 +15,8 @@ module.exports = {
   LIBRARY_PUSH: 'library/PUSH',
   LIBRARY_PUSH_SONG: 'library/PUSH_SONG',
   // queue
-  QUEUE_ADD: 'server/QUEUE_ADD',
-  QUEUE_MOVE: 'server/QUEUE_MOVE',
   QUEUE_PUSH: 'queue/PUSH',
+  QUEUE_ADD: 'server/QUEUE_ADD',
   QUEUE_REMOVE: 'server/QUEUE_REMOVE',
   // player internal
   PLAYER_UPDATE: 'player/UPDATE',
@@ -33,7 +32,7 @@ module.exports = {
   PLAYER_REQ_NEXT: 'server/PLAYER_REQ_NEXT',
   PLAYER_REQ_VOLUME: 'server/PLAYER_REQ_VOLUME',
   PLAYER_EMIT_STATUS: 'server/PLAYER_EMIT_STATUS',
-  PLAYER_EMIT_LEAVE: 'server/PLAYER_EMIT_LEAVE',
+  PLAYER_EMIT_LEAVE:  'server/PLAYER_EMIT_LEAVE',
   // player events
   PLAYER_STATUS: 'status/PLAYER_STATUS',
   PLAYER_ERROR: 'status/PLAYER_ERROR',
@@ -88,8 +87,12 @@ module.exports = {
   // IPC messages
   SCANNER_CMD_START: 'scannerWorker/CMD_START',
   SCANNER_CMD_STOP: 'scannerWorker/CMD_STOP',
-  SCANNER_WORKER_LOG: 'scannerWorker/LOG',
   SCANNER_WORKER_STATUS: 'scannerWorker/STATUS',
+  YOUTUBE_CMD_START: 'youtubeWorker/CMD_START',
+  YOUTUBE_CMD_STOP: 'youtubeWorker/CMD_STOP',
+  YOUTUBE_CMD_UPDATE: 'youtubeWorker/CMD_UPDATE',
+  YOUTUBE_WORKER_STATUS: 'youtubeWorker/STATUS',
+  YOUTUBE_VIDEO_UPDATE: 'youtubeWorker/VIDEO_UPDATE',
   SERVER_WORKER_STATUS: 'serverWorker/STATUS',
   SERVER_WORKER_ERROR: 'serverWorker/ERROR',
   LIBRARY_MATCH_SONG: 'scannerWorker/LIBRARY_MATCH_SONG',
