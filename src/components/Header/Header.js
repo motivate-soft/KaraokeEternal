@@ -1,12 +1,10 @@
+import PropTypes from 'prop-types'
 import React, { useCallback } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { Routes, Route, useLocation } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import { createSelector } from 'reselect'
-
 import { requestScanStop } from 'store/modules/prefs'
-import getRoundRobinQueue from 'routes/Queue/selectors/getRoundRobinQueue'
-import getWaits from 'routes/Queue/selectors/getWaits'
-import LibraryHeader from 'routes/Library/components/LibraryHeader'
+import getOrderedQueue from 'routes/Queue/selectors/getOrderedQueue'
 import PlaybackCtrl from './PlaybackCtrl'
 import ProgressBar from './ProgressBar'
 import UpNext from './UpNext'
@@ -14,24 +12,40 @@ import styles from './Header.css'
 
 // selectors
 const getIsAtQueueEnd = (state) => state.status.isAtQueueEnd
+const getPosition = (state) => state.status.position
 const getQueueId = (state) => state.status.queueId
+const getSongs = (state) => state.songs
 const getUserId = (state) => state.user.userId
 
 const getUserWait = createSelector(
-  [getRoundRobinQueue, getQueueId, getUserId, getWaits],
-  (queue, queueId, userId, waits) => {
+  [getOrderedQueue, getSongs, getQueueId, getPosition, getUserId],
+  (queue, songs, queueId, pos, userId) => {
+    if (!queue.entities[queueId]) return // queueItem not found
+    let duration = 0
+    if (queue.entities[queueId].youtubeVideoId) {
+      duration = queue.entities[queueId].youtubeVideoDuration
+    } else {
+      if (!songs.entities[queue.entities[queueId].songId]) return // song not found
+      duration = songs.entities[queue.entities[queueId].songId].duration
+    }
+
+    // current song's remaining time
+    let wait = Math.round(duration - pos)
+
     const curIdx = queue.result.indexOf(queueId)
 
     for (let i = curIdx + 1; i < queue.result.length; i++) {
-      if (queue.entities[queue.result[i]].userId === userId) {
-        return waits[queue.result[i]]
+      if (queue.entities[queue.result[i]] && queue.entities[queue.result[i]].userId === userId) {
+        return wait
       }
+
+      wait += duration
     }
   }
 )
 
 const getStatusProps = createSelector(
-  [getRoundRobinQueue, getQueueId, getIsAtQueueEnd, getUserId],
+  [getOrderedQueue, getQueueId, getIsAtQueueEnd, getUserId],
   (queue, queueId, isAtQueueEnd, userId) => {
     const { result, entities } = queue
     const curIdx = result.indexOf(queueId)
@@ -46,6 +60,8 @@ const getStatusProps = createSelector(
 
 // component
 const Header = React.forwardRef((props, ref) => {
+  const CustomHeader = props.customHeader
+
   const isAdmin = useSelector(state => state.user.isAdmin)
   const isPlayerPresent = useSelector(state => state.status.isPlayerPresent)
   const isScanning = useSelector(state => state.prefs.isScanning)
@@ -79,13 +95,16 @@ const Header = React.forwardRef((props, ref) => {
         />
       }
 
-      <Routes>
-        <Route path='/library' element={<LibraryHeader/>}/>
-      </Routes>
+      {props.customHeader &&
+        <CustomHeader/>
+      }
     </div>
   )
 })
 
 Header.displayName = 'Header'
+Header.propTypes = {
+  customHeader: PropTypes.object,
+}
 
 export default Header

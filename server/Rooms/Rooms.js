@@ -70,44 +70,7 @@ class Rooms {
   }
 
   static prefix (roomId = '') {
-    return `ROOM_ID_${roomId}`
-  }
-
-  /**
-   * Utility method to list active rooms on a socket.io instance
-   *
-   * @param  {Object}  io  The socket.io instance
-   * @return {Array}       Array of objects as { room, roomId }
-   */
-  static getActive (io) {
-    const rooms = []
-
-    for (const room of io.sockets.adapter.rooms.keys()) {
-      // ignore auto-generated per-user rooms
-      if (room.startsWith(Rooms.prefix())) {
-        const roomId = parseInt(room.substring(Rooms.prefix().length), 10)
-        rooms.push({ room, roomId })
-      }
-    }
-
-    return rooms
-  }
-
-  /**
-   * Utility method to determine if a player is in a room
-   *
-   * @param  {Object}  io  The socket.io instance
-   * @param  {Object}  roomId  Room to check
-   * @return {Boolean}
-   */
-  static isPlayerPresent (io, roomId) {
-    for (const sock of io.of('/').sockets.values()) {
-      if (sock.user && sock.user.roomId === roomId && sock._lastPlayerStatus) {
-        return true
-      }
-    }
-
-    return false
+    return `KF_ROOM_ID_${roomId}`
   }
 }
 

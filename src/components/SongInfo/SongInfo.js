@@ -42,27 +42,14 @@ const SongInfo = (props) => {
       isVisible={isVisible}
       onClose={handleCloseSongInfo}
       title='Song Info'
-      style={{
-        width: '90%',
-        height: '90%',
-      }}
+      buttons=<button onClick={handleCloseSongInfo}>Done</button>
+      style={{ width: '100%', height: '100%' }}
     >
-      <div className={styles.container}>
-        <p>
-          <span className={styles.label}>Song ID: </span>{songId}<br />
-          <span className={styles.label}>Media Files: </span>{isLoading ? '?' : media.result.length}
-        </p>
-
-        <div className={styles.mediaContainer}>
-          {isLoading ? <p>Loading...</p> : mediaDetails}
-        </div>
-
-        <div>
-          <button className='primary' onClick={handleCloseSongInfo}>
-              Done
-          </button>
-        </div>
-      </div>
+      <p>
+        <span className={styles.label}>Song ID: </span>{songId}<br />
+        <span className={styles.label}>Media Files: </span>{isLoading ? '?' : media.result.length}
+      </p>
+      {isLoading ? <p>Loading...</p> : mediaDetails}
     </Modal>
   )
 }

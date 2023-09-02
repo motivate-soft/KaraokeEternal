@@ -1,4 +1,4 @@
-const log = require('../lib/Log')(`server[${process.pid}]`)
+const log = require('../lib/Log').getLogger(`server[${process.pid}]`)
 const Library = require('../Library')
 const Prefs = require('./Prefs')
 const {
@@ -31,7 +31,8 @@ const ACTION_HANDLERS = {
       })
     }
 
-    await Prefs.setPathPriority(payload)
+    // not async!
+    Prefs.setPathPriority(payload)
     log.info('%s re-prioritized media folders; pushing library to all', sock.user.name)
 
     await pushPrefs(sock)

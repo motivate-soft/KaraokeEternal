@@ -1,7 +1,3 @@
-.form label {
-  cursor: pointer;
-}
-
 .btn {
   margin-bottom: var(--input-margin);
 }

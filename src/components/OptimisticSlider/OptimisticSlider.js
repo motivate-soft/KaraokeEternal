@@ -6,13 +6,12 @@ import { lockScrolling } from 'store/modules/ui'
 
 export default class OptimisticSlider extends React.Component {
   static propTypes = {
-    className: PropTypes.string,
-    handle: PropTypes.func.isRequired, // custom handle render prop
+    handle: PropTypes.func.isRequired,
     min: PropTypes.number.isRequired,
     max: PropTypes.number.isRequired,
-    onChange: PropTypes.func.isRequired,
     step: PropTypes.number.isRequired,
     value: PropTypes.number.isRequired,
+    onChange: PropTypes.func.isRequired,
   }
 
   state = {
@@ -41,15 +40,11 @@ export default class OptimisticSlider extends React.Component {
   render () {
     return (
       <Slider
-        className={this.props.className}
-        handleRender={this.props.handle}
-        max={this.props.max}
-        min={this.props.min}
-        onAfterChange={this.handleAfterChange}
-        onBeforeChange={this.handleBeforeChange}
-        onChange={this.handleChange}
-        step={this.props.step}
+        {...this.props}
         value={this.state.isDragging ? this.state.val : this.props.value}
+        onChange={this.handleChange}
+        onBeforeChange={this.handleBeforeChange}
+        onAfterChange={this.handleAfterChange}
       />
     )
   }

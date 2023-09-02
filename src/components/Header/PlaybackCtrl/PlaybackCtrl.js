@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { useLocation } from 'react-router-dom'
 import screenfull from 'screenfull'
 import { requestOptions, requestPause, requestPlay, requestPlayNext, requestVolume } from 'store/modules/status'
-import Button from 'components/Button'
+import Icon from 'components/Icon'
 import VolumeSlider from './VolumeSlider'
 import NoPlayer from './NoPlayer'
 import DisplayCtrl from './DisplayCtrl'
@@ -43,41 +43,34 @@ const PlaybackCtrl = props => {
 
   return (
     <div className={styles.container}>
-      <Button
-        animateClassName={styles.btnAnimate}
-        className={status.isPlaying ? styles.pause : styles.play}
-        icon={status.isPlaying ? 'PAUSE' : 'PLAY'}
-        onClick={status.isPlaying ? handlePause : handlePlay}
-        size={44}
-      />
+      {status.isPlaying &&
+        <div onClick={handlePause} className={styles.pause}>
+          <Icon icon='PAUSE' size={44}/>
+        </div>
+      }
+      {!status.isPlaying &&
+        <div onClick={handlePlay} className={styles.play}>
+          <Icon icon='PLAY' size={44}/>
+        </div>
+      }
 
-      <Button
-        animateClassName={styles.btnAnimate}
-        className={styles.next}
-        icon='PLAY_NEXT'
-        onClick={handlePlayNext}
-        size={48}
-      />
+      <div onClick={handlePlayNext} className={styles.next}>
+        <Icon icon='PLAY_NEXT' size={48}/>
+      </div>
 
       <VolumeSlider
         volume={status.volume}
         onVolumeChange={handleVolume}
       />
 
-      <Button
-        className={styles.displayCtrl}
-        icon='TUNE'
-        onClick={toggleDisplayCtrl}
-        size={48}
-      />
+      <div onClick={toggleDisplayCtrl} className={styles.displayCtrl}>
+        <Icon icon='TUNE' size={44}/>
+      </div>
 
       {isPlayer && screenfull.isEnabled &&
-        <Button
-          className={styles.fullscreen}
-          icon='FULLSCREEN'
-          onClick={handleFullscreen}
-          size={48}
-        />
+        <div onClick={handleFullscreen} className={styles.fullscreen}>
+          <Icon icon='FULLSCREEN' size={48}/>
+        </div>
       }
 
       <DisplayCtrl

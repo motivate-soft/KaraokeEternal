@@ -75,7 +75,7 @@ const ACTION_HANDLERS = {
 // ------------------------------------
 const initialState = {
   cdgAlpha: 0,
-  cdgSize: 0.8,
+  cdgSize: 0.7,
   errorMessage: '',
   historyJSON: '[]', // queueIds in JSON array
   isAtQueueEnd: false,
@@ -85,7 +85,6 @@ const initialState = {
   isWebGLSupported: false,
   mediaType: null,
   mp4Alpha: 1,
-  nextUserId: null,
   position: 0,
   queueId: -1,
   visualizer: {},

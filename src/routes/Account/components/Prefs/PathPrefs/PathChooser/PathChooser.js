@@ -38,8 +38,8 @@ const PathChooser = props => {
       onClose={onCancel}
       title='Add Folder'
       style={{
-        width: '90%',
-        height: '90%',
+        width: '100%',
+        height: '100%',
       }}
     >
       <div className={styles.container}>

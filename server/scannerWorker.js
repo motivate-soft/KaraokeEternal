@@ -1,5 +1,7 @@
-const path = require('path')
-const log = require('./lib/Log')(`scanner[${process.pid}]`)
+const log = require('./lib/Log')
+  .set('console', process.env.KF_SCANNER_CONSOLE_LEVEL, process.env.NODE_ENV === 'development' ? 5 : 4)
+  .set('file', process.env.KF_SCANNER_LOG_LEVEL, process.env.NODE_ENV === 'development' ? 0 : 3)
+  .getLogger(`scanner[${process.pid}]`)
 const Database = require('./lib/Database')
 const IPC = require('./lib/IPCBridge')
 const {
@@ -11,10 +13,7 @@ let FileScanner, Prefs
 let _Scanner
 let _isScanQueued = true
 
-Database.open({
-  file: path.join(process.env.KES_PATH_DATA, 'database.sqlite3'),
-  ro: true,
-}).then(db => {
+Database.open({ readonly: true, log: log.info }).then(db => {
   Prefs = require('./Prefs')
   FileScanner = require('./Scanner/FileScanner')
 
@@ -32,9 +31,6 @@ Database.open({
   })
 
   startScan()
-}).catch(err => {
-  log.error(err.message)
-  process.exit(1)
 })
 
 async function startScan () {
@@ -48,7 +44,7 @@ async function startScan () {
     await _Scanner.scan()
   } // end while
 
-  process.exit(0)
+  process.exit()
 }
 
 function cancelScan () {

@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import useResizeObserver from 'use-resize-observer'
 // global stylesheets should be imported before any
 // components that will import their own modular css
+import 'normalize.css'
 import '../../../styles/global.css'
 import Header from 'components/Header'
 import Navigation from 'components/Navigation'
@@ -10,9 +11,11 @@ import Modal from 'components/Modal'
 import SongInfo from 'components/SongInfo'
 import Routes from '../Routes'
 import { clearErrorMessage, setFooterHeight, setHeaderHeight } from 'store/modules/ui'
+import { ToastContainer } from 'react-toastify'
 
 const CoreLayout = (props) => {
   const dispatch = useDispatch()
+  const [header, setHeader] = React.useState(null)
   const headerRef = React.useRef()
   const navRef = React.useRef()
 
@@ -31,11 +34,11 @@ const CoreLayout = (props) => {
 
   return (
     <>
-      <Header ref={headerRef}/>
+      <Header customHeader={header} ref={headerRef} />
 
-      <Routes/>
+      <Routes setHeader={setHeader} />
 
-      <Navigation ref={navRef}/>
+      <Navigation ref={navRef} />
 
       <SongInfo/>
 
@@ -45,10 +48,10 @@ const CoreLayout = (props) => {
         title='Oops...'
         buttons=<button onClick={closeError}>OK</button>
       >
-        <p style={{ '-webkit-user-select': 'text', userSelect: 'text' }}>
-          {ui.errorMessage}
-        </p>
+        <p>{ui.errorMessage}</p>
       </Modal>
+
+      <ToastContainer />
     </>
   )
 }

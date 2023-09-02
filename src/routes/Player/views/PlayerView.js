@@ -1,3 +1,4 @@
+import PropTypes from 'prop-types'
 import React from 'react'
 import { useSelector, useStore } from 'react-redux'
 import { injectReducer } from 'store/reducers'
@@ -11,6 +12,7 @@ import styles from './PlayerView.css'
 const PlayerView = (props) => {
   const { innerWidth, innerHeight, headerHeight, footerHeight } = useSelector(state => state.ui)
   const viewportHeight = innerHeight - headerHeight - footerHeight
+  React.useLayoutEffect(() => props.setHeader(null))
 
   // @todo: find better place for this?
   const store = useStore()
@@ -37,6 +39,10 @@ const PlayerView = (props) => {
       </div>
     </div>
   )
+}
+
+PlayerView.propTypes = {
+  setHeader: PropTypes.func.isRequired,
 }
 
 export default PlayerView

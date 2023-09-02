@@ -1,10 +1,11 @@
 const bcrypt = require('../lib/bcrypt')
 const db = require('../lib/Database').db
 const sql = require('sqlate')
-const KoaRouter = require('@koa/router')
+const KoaRouter = require('koa-router')
 const router = KoaRouter({ prefix: '/api' })
-const log = require('../lib/Log')('Rooms')
+const log = require('../lib/Log').getLogger('Rooms')
 const Rooms = require('../Rooms')
+const Media = require('../Media')
 
 const BCRYPT_ROUNDS = 12
 const NAME_MIN_LENGTH = 1
@@ -123,21 +124,41 @@ router.delete('/rooms/:roomId', async (ctx, next) => {
     ctx.throw(422, 'Invalid roomId')
   }
 
-  // remove room's queue first
-  const queueQuery = sql`
-    DELETE FROM queue
-    WHERE roomId = ${roomId}
-  `
-  await db.run(String(queueQuery), queueQuery.parameters)
-
-  // remove room
-  const roomQuery = sql`
+  let query = sql`
     DELETE FROM rooms
     WHERE roomId = ${roomId}
   `
-  await db.run(String(roomQuery), roomQuery.parameters)
+  let res = await db.run(String(query), query.parameters)
 
-  log.verbose('%s deleted roomId %s', ctx.user.name, roomId)
+  if (res.changes) {
+    log.verbose('%s deleted roomId %s', ctx.user.name, roomId)
+  }
+
+  // get all youtube videos that were queued in this room...
+  const queueYoutubeItemsQuery = sql`
+    SELECT DISTINCT youtubeVideos.*
+    FROM youtubeVideos
+    JOIN queue on queue.youtubeVideoId = youtubeVideos.youtubeVideoId
+    WHERE queue.youtubeVideoId IS NOT NULL AND queue.roomId = ${roomId}
+  `
+  const queueYoutubeItems = await db.all(String(queueYoutubeItemsQuery), queueYoutubeItemsQuery.parameters)
+
+  // remove room's queue
+  query = sql`
+    DELETE FROM queue
+    WHERE roomId = ${roomId}
+  `
+  res = await db.run(String(query), query.parameters)
+
+  // do an update on all the youtube videos that are no longer queued anywhere.
+  // this will cause them to be cleaned up and deleted...
+  queueYoutubeItems.forEach(video => {
+    Media.updateYoutubeVideo({ video }, ctx.io)
+  })
+
+  if (res.changes) {
+    log.verbose('removed %s queue item(s) for roomId %s', res.changes, roomId)
+  }
 
   // send updated room list
   ctx.body = await Rooms.get(true)

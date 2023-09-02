@@ -1,9 +1,16 @@
-@import '~modern-normalize/modern-normalize.css';
 @import './variables.css';
 @import './fonts.css';
 @import './rc-slider.css';
+@import '~react-toastify/dist/ReactToastify.css'; /* necessary to import from here to be loaded late in main.css, instead of early in vendors.css */
+
+*,
+*:before,
+*:after {
+  box-sizing: inherit;
+}
 
 html {
+  box-sizing: border-box;
   height: 100%;
   touch-action: manipulation;
   -webkit-user-select: none;
@@ -47,6 +54,7 @@ input[type="text"],
 input[type="email"],
 input[type="password"],
 input[type="search"],
+input[type="number"],
 select {
   display: block;
   width: 100%;
@@ -82,8 +90,19 @@ input[type="search"]::-webkit-search-cancel-button {
   -webkit-appearance: none;
 }
 
+/* Modal dialog */
+@keyframes react-responsive-modal-fadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes react-responsive-modal-fadeOut {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
 /* Buttons */
-button {
+button:not(.Toastify__close-button) {
   background-color: var(--btn-default-bg-color);
   border: none;
   border-radius: var(--border-radius);
@@ -91,7 +110,6 @@ button {
   color: var(--btn-default-color);
   cursor: pointer;
   display: inline-block;
-  font-weight: inherit;
   padding: 16px;
   width: 100%;
 }
