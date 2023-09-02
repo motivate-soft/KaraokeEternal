@@ -1,0 +1,7 @@
+.artistsHeading,
+.songsHeading {
+  color: var(--search-results-heading-color);
+  background-color: var(--search-results-heading-bg-color);
+  font-size: 18px;
+  text-align: center;
+}
